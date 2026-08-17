@@ -45,6 +45,79 @@ def format_metric_table(dataframe):
     return dataframe.style.format({column: "{:.4f}" for column in metric_columns})
 
 
+def build_model_observations(metrics_df, feature_count):
+    ranked_df = metrics_df.copy()
+    metric_columns = ["Accuracy", "AUC", "Precision", "Recall", "F1", "MCC"]
+    for column in metric_columns:
+        ranked_df[f"{column} Rank"] = ranked_df[column].rank(ascending=False)
+    ranked_df["Average Rank"] = ranked_df[[f"{column} Rank" for column in metric_columns]].mean(axis=1)
+
+    best_accuracy = ranked_df.loc[ranked_df["Accuracy"].idxmax(), "ML Model Name"]
+    best_auc = ranked_df.loc[ranked_df["AUC"].idxmax(), "ML Model Name"]
+    best_f1 = ranked_df.loc[ranked_df["F1"].idxmax(), "ML Model Name"]
+    best_mcc = ranked_df.loc[ranked_df["MCC"].idxmax(), "ML Model Name"]
+    best_recall = ranked_df.loc[ranked_df["Recall"].idxmax(), "ML Model Name"]
+    overall_winner = ranked_df.sort_values("Average Rank").iloc[0]["ML Model Name"]
+
+    observations = []
+    for _, row in metrics_df.iterrows():
+        model_name = row["ML Model Name"]
+        score_summary = (
+            f"Accuracy {row['Accuracy']:.4f}, AUC {row['AUC']:.4f}, "
+            f"F1 {row['F1']:.4f}, MCC {row['MCC']:.4f}."
+        )
+
+        if model_name == "Logistic Regression":
+            observation = (
+                f"{score_summary} This model gives a strong linear baseline after scaling the "
+                f"{feature_count} numeric email features."
+            )
+        elif model_name == "Decision Tree":
+            observation = (
+                f"{score_summary} The tree captures non-linear rules, but a single tree is more "
+                "sensitive to feature thresholds than the ensemble model."
+            )
+        elif model_name == "kNN":
+            observation = (
+                f"{score_summary} kNN uses distance between emails after scaling, so it works "
+                "reasonably well but can be affected by many input features."
+            )
+        elif model_name == "Naive Bayes":
+            observation = (
+                f"{score_summary} It has the highest recall in this run, which means it catches "
+                "more spam emails, but its lower precision creates more false positives."
+            )
+        elif model_name == "Random Forest":
+            observation = (
+                f"{score_summary} The ensemble handles non-linear feature interactions well and "
+                "reduces the instability of a single Decision Tree."
+            )
+        else:
+            observation = f"{score_summary} Performance is compared against the other trained models."
+
+        observations.append(
+            {
+                "ML Model Name": (
+                    "Random Forest (Ensemble)" if model_name == "Random Forest" else model_name
+                ),
+                "Observation about model performance": observation,
+            }
+        )
+
+    observations.append(
+        {
+            "ML Model Name": "Overall Winner for this dataset",
+            "Observation about model performance": (
+                f"{overall_winner} is the overall winner for the current dataset because it has "
+                f"the best average rank across the required metrics. Best Accuracy: {best_accuracy}; "
+                f"Best AUC: {best_auc}; Best F1: {best_f1}; Best MCC: {best_mcc}; "
+                f"Best Recall: {best_recall}."
+            ),
+        }
+    )
+    return pd.DataFrame(observations)
+
+
 def confusion_matrix_block(matrix, labels):
     max_value = max(int(matrix.max()), 1)
     rows = []
@@ -285,6 +358,10 @@ try:
     for metric_col, (label, value) in zip(metric_cols, metrics.items()):
         metric_col.metric(label, f"{value:.4f}")
 
+    st.markdown('<div class="result-section"></div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">All Metrics</div>', unsafe_allow_html=True)
+    st.dataframe(format_metric_table(comparison_df), width="stretch")
+
     st.markdown('<div class="section-title">Model Comparison</div>', unsafe_allow_html=True)
     st.bar_chart(
         comparison_df,
@@ -292,6 +369,11 @@ try:
         y=["Accuracy", "AUC", "F1", "MCC"],
         height=280,
     )
+
+    observations_df = build_model_observations(comparison_df, len(feature_names))
+    st.markdown('<div class="result-section"></div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Model Performance Observations</div>', unsafe_allow_html=True)
+    st.table(observations_df)
 
     report = classification_report(
         y_test,
@@ -309,7 +391,11 @@ try:
     )
 
     st.markdown('<div class="result-section"></div>', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">Classification Report</div>', unsafe_allow_html=True)
+    st.markdown(
+        f'<div class="section-title">Classification Report - {selected_model_name}</div>',
+        unsafe_allow_html=True,
+    )
+    st.caption(f"Report generated for {selected_model_name} on {data_source.lower()}.")
     st.dataframe(report_df.style.format("{:.4f}"), width="stretch")
 
     st.markdown('<div class="result-section"></div>', unsafe_allow_html=True)
@@ -324,9 +410,5 @@ try:
     st.markdown('<div class="section-title">Test Data</div>', unsafe_allow_html=True)
     preview_cols = ["target"] + feature_names[:8]
     st.dataframe(test_data[preview_cols], width="stretch", height=420)
-
-    st.markdown('<div class="result-section"></div>', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">All Metrics</div>', unsafe_allow_html=True)
-    st.dataframe(format_metric_table(comparison_df), width="stretch")
 except Exception as exc:
     st.error(str(exc))
