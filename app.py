@@ -359,16 +359,8 @@ try:
         metric_col.metric(label, f"{value:.4f}")
 
     st.markdown('<div class="result-section"></div>', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">All Metrics</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Model Comparison Table</div>', unsafe_allow_html=True)
     st.dataframe(format_metric_table(comparison_df), width="stretch")
-
-    st.markdown('<div class="section-title">Model Comparison</div>', unsafe_allow_html=True)
-    st.bar_chart(
-        comparison_df,
-        x="ML Model Name",
-        y=["Accuracy", "AUC", "F1", "MCC"],
-        height=280,
-    )
 
     observations_df = build_model_observations(comparison_df, len(feature_names))
     st.markdown('<div class="result-section"></div>', unsafe_allow_html=True)
