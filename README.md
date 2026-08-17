@@ -19,9 +19,9 @@ The dataset satisfies the assignment constraints because it has more than 500 in
 
 ## c. GitHub Repository Link
 
-GitHub Repository Link: `https://github.com/MuthukumarM16/ML_Assignment2`
+GitHub Repository Link: [ML_Assignment2](https://github.com/MuthukumarM16/ML_Assignment2)
 
-Live Streamlit App Link: `PASTE_YOUR_STREAMLIT_APP_LINK_HERE`
+Live Streamlit App Link: [Spambase Email Classification App](https://mlassignment2-xpdyarvzmwdeevknnpesn6.streamlit.app/)
 
 ## d. Models Used
 
