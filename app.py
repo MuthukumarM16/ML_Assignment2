@@ -45,6 +45,114 @@ def format_metric_table(dataframe):
     return dataframe.style.format({column: "{:.4f}" for column in metric_columns})
 
 
+def confusion_matrix_block(matrix, labels):
+    max_value = max(int(matrix.max()), 1)
+    rows = []
+    for row_index, actual_label in enumerate(labels):
+        cells = []
+        for column_index, predicted_label in enumerate(labels):
+            value = int(matrix[row_index][column_index])
+            intensity = 0.12 + 0.78 * (value / max_value)
+            text_color = "#FFFFFF" if intensity > 0.45 else "#0F172A"
+            cell_label = (
+                f"Actual {actual_label}<br>Predicted {predicted_label}"
+            )
+            cells.append(
+                f"""
+                <div class="cm-cell" style="background: rgba(37, 99, 235, {intensity:.2f}); color: {text_color};">
+                    <div class="cm-value">{value}</div>
+                    <div class="cm-label">{cell_label}</div>
+                </div>
+                """
+            )
+        rows.append("".join(cells))
+
+    return f"""
+    <style>
+    body {{
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: #0F172A;
+    }}
+    .cm-wrap {{
+        background: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 16px;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+    }}
+    .cm-title {{
+        color: #0F172A;
+        font-size: 1rem;
+        font-weight: 700;
+        text-align: center;
+        margin-bottom: 8px;
+    }}
+    .cm-axis {{
+        color: #475569;
+        font-size: 0.82rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }}
+    .cm-axis-top {{
+        text-align: center;
+        margin-bottom: 8px;
+    }}
+    .cm-layout {{
+        display: grid;
+        grid-template-columns: 34px 1fr;
+        gap: 10px;
+        align-items: center;
+    }}
+    .cm-axis-left {{
+        writing-mode: vertical-rl;
+        transform: rotate(180deg);
+        text-align: center;
+    }}
+    .cm-grid {{
+        display: grid;
+        grid-template-columns: repeat(2, minmax(130px, 1fr));
+        border: 1px solid #CBD5E1;
+        border-radius: 8px;
+        overflow: hidden;
+    }}
+    .cm-cell {{
+        min-height: 128px;
+        border: 1px solid rgba(255, 255, 255, 0.65);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        padding: 14px;
+        box-sizing: border-box;
+    }}
+    .cm-value {{
+        font-size: 2rem;
+        font-weight: 800;
+        line-height: 1;
+    }}
+    .cm-label {{
+        font-size: 0.82rem;
+        font-weight: 650;
+        margin-top: 10px;
+        opacity: 0.9;
+    }}
+    </style>
+    <div class="cm-wrap">
+        <div class="cm-title">Confusion Matrix Block Diagram</div>
+        <div class="cm-axis cm-axis-top">Predicted</div>
+        <div class="cm-layout">
+            <div class="cm-axis cm-axis-left">Actual</div>
+            <div class="cm-grid">
+                {''.join(rows)}
+            </div>
+        </div>
+    </div>
+    """
+
+
 st.set_page_config(
     page_title="Spambase Email Classification Lab",
     page_icon=":email:",
@@ -109,6 +217,11 @@ st.markdown(
         font-size: 0.82rem;
         font-weight: 650;
         margin-top: 0.75rem;
+    }
+    .result-section {
+        border-top: 1px solid #E2E8F0;
+        padding-top: 1.1rem;
+        margin-top: 1.25rem;
     }
     </style>
     """,
@@ -180,35 +293,40 @@ try:
         height=280,
     )
 
-    report_tab, matrix_tab, data_tab, comparison_tab = st.tabs(
-        ["Classification Report", "Confusion Matrix", "Test Data", "All Metrics"]
+    report = classification_report(
+        y_test,
+        predictions,
+        target_names=target_labels,
+        output_dict=True,
+        zero_division=0,
+    )
+    report_df = pd.DataFrame(report).transpose()
+    matrix = confusion_matrix(y_test, predictions)
+    matrix_df = pd.DataFrame(
+        matrix,
+        index=[f"Actual {name}" for name in target_labels],
+        columns=[f"Predicted {name}" for name in target_labels],
     )
 
-    with report_tab:
-        report = classification_report(
-            y_test,
-            predictions,
-            target_names=target_labels,
-            output_dict=True,
-            zero_division=0,
-        )
-        report_df = pd.DataFrame(report).transpose()
-        st.dataframe(report_df.style.format("{:.4f}"), width="stretch")
+    st.markdown('<div class="result-section"></div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Classification Report</div>', unsafe_allow_html=True)
+    st.dataframe(report_df.style.format("{:.4f}"), width="stretch")
 
-    with matrix_tab:
-        matrix = confusion_matrix(y_test, predictions)
-        matrix_df = pd.DataFrame(
-            matrix,
-            index=[f"Actual {name}" for name in target_labels],
-            columns=[f"Predicted {name}" for name in target_labels],
-        )
+    st.markdown('<div class="result-section"></div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Confusion Matrix</div>', unsafe_allow_html=True)
+    matrix_visual_col, matrix_table_col = st.columns([1, 1])
+    with matrix_visual_col:
+        st.html(confusion_matrix_block(matrix, target_labels))
+    with matrix_table_col:
         st.dataframe(matrix_df, width="stretch")
 
-    with data_tab:
-        preview_cols = ["target"] + feature_names[:8]
-        st.dataframe(test_data[preview_cols], width="stretch", height=420)
+    st.markdown('<div class="result-section"></div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Test Data</div>', unsafe_allow_html=True)
+    preview_cols = ["target"] + feature_names[:8]
+    st.dataframe(test_data[preview_cols], width="stretch", height=420)
 
-    with comparison_tab:
-        st.dataframe(format_metric_table(comparison_df), width="stretch")
+    st.markdown('<div class="result-section"></div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">All Metrics</div>', unsafe_allow_html=True)
+    st.dataframe(format_metric_table(comparison_df), width="stretch")
 except Exception as exc:
     st.error(str(exc))
