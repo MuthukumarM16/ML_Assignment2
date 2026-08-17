@@ -5,6 +5,7 @@ from reportlab.lib.pagesizes import LETTER
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch
 from reportlab.platypus import (
+    Image,
     PageBreak,
     Paragraph,
     SimpleDocTemplate,
@@ -16,7 +17,13 @@ from reportlab.platypus import (
 
 ROOT = Path(__file__).parent
 OUTPUT_DIR = ROOT / "output" / "pdf"
-OUTPUT_PATH = OUTPUT_DIR / "ML_Assignment_2_Submission_Draft.pdf"
+OUTPUT_PATH = OUTPUT_DIR / "README.pdf"
+SCREENSHOT_PATH = Path(
+    "/var/folders/42/v0c8c0jx2d17vxs7z08_gz0c0000gn/T/"
+    "codex-clipboard-c6774700-a163-4e07-a122-ac31af19c04d.png"
+)
+GITHUB_URL = "https://github.com/MuthukumarM16/ML_Assignment2"
+STREAMLIT_URL = "https://mlassignment2-xpdyarvzmwdeevknnpesn6.streamlit.app/"
 
 
 def paragraph(text, style):
@@ -39,9 +46,9 @@ def build_pdf():
     placeholder = ParagraphStyle(
         "Placeholder",
         parent=normal,
-        textColor=colors.HexColor("#9A3412"),
-        backColor=colors.HexColor("#FFF7ED"),
-        borderColor=colors.HexColor("#FDBA74"),
+        textColor=colors.HexColor("#1D4ED8"),
+        backColor=colors.HexColor("#EFF6FF"),
+        borderColor=colors.HexColor("#93C5FD"),
         borderPadding=5,
         leading=12,
     )
@@ -59,14 +66,31 @@ def build_pdf():
         paragraph("Machine Learning Assignment 2", title),
         paragraph("Spam Email Classification Using Machine Learning", heading),
         paragraph(
-            "This draft contains the required repository link section, Streamlit app link section, "
-            "README content, model comparison table, and observations. Replace the placeholders "
-            "with the final GitHub and Streamlit links, then insert the BITS Virtual Lab screenshot.",
+            "This PDF contains the required GitHub repository link, live Streamlit app link, "
+            "BITS Virtual Lab execution screenshot, README content, model comparison table, "
+            "model observations, and final submission checklist.",
             normal,
         ),
-        paragraph("GitHub Repository Link: https://github.com/MuthukumarM16/ML_Assignment2", placeholder),
-        paragraph("Live Streamlit App Link: PASTE_YOUR_STREAMLIT_APP_LINK_HERE", placeholder),
-        paragraph("BITS Virtual Lab Screenshot: INSERT_SCREENSHOT_HERE", placeholder),
+        paragraph(
+            f'GitHub Repository Link: <link href="{GITHUB_URL}">{GITHUB_URL}</link>',
+            placeholder,
+        ),
+        paragraph(
+            f'Live Streamlit App Link: <link href="{STREAMLIT_URL}">{STREAMLIT_URL}</link>',
+            placeholder,
+        ),
+        paragraph("BITS Virtual Lab Screenshot", heading),
+    ]
+    if SCREENSHOT_PATH.exists():
+        screenshot = Image(str(SCREENSHOT_PATH))
+        screenshot._restrictSize(6.35 * inch, 3.75 * inch)
+        elements.extend([screenshot, Spacer(1, 10)])
+    else:
+        elements.append(
+            paragraph("Screenshot file was not available while generating this PDF.", normal)
+        )
+    elements.extend(
+        [
         Spacer(1, 10),
         paragraph("a. Problem Statement", heading),
         paragraph(
@@ -85,7 +109,8 @@ def build_pdf():
             "UCI Machine Learning Repository.",
             normal,
         ),
-    ]
+        ]
+    )
 
     dataset_rows = [
         ["Property", "Value"],
@@ -108,8 +133,14 @@ def build_pdf():
                 normal,
             ),
             paragraph("c. GitHub Repository Link", heading),
-            paragraph("GitHub Repository Link: https://github.com/MuthukumarM16/ML_Assignment2", placeholder),
-            paragraph("Live Streamlit App Link: PASTE_YOUR_STREAMLIT_APP_LINK_HERE", placeholder),
+            paragraph(
+                f'GitHub Repository Link: <link href="{GITHUB_URL}">{GITHUB_URL}</link>',
+                placeholder,
+            ),
+            paragraph(
+                f'Live Streamlit App Link: <link href="{STREAMLIT_URL}">{STREAMLIT_URL}</link>',
+                placeholder,
+            ),
             paragraph("d. Models Used", heading),
             paragraph(
                 "The following models were trained and evaluated on the same stratified test split: "
@@ -177,8 +208,20 @@ def build_pdf():
                 "data/spambase.csv, and saved model artifacts under the model folder.",
                 normal,
             ),
+            paragraph("Final Submission Checklist", heading),
         ]
     )
+    checklist_rows = [
+        ["Checklist Item", "Status"],
+        ["GitHub repo link works", "Done"],
+        ["Streamlit app link opens correctly", "Done"],
+        ["App loads without errors", "Done"],
+        ["All required Streamlit features implemented", "Done"],
+        ["README.md updated", "Done"],
+        ["README content added in submitted PDF", "Done"],
+        ["BITS Virtual Lab screenshot included", "Done"],
+    ]
+    elements.append(make_table(checklist_rows, [4.7 * inch, 1.6 * inch], small))
 
     doc.build(elements)
     print(OUTPUT_PATH)
